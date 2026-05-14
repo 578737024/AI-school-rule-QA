@@ -1,0 +1,95 @@
+第一部分：库导入与基础配置
+import re                                                 # 导入正则表达式库，用于解析规则文本 [1]
+import numpy as np                                        # 导入数值计算库，用于向量计算（如计算相似度得分） [1]
+import pandas as pd                                       # 导入数据处理库，用于后续可能的批量数据操作 [1]
+import subprocess                                         # 导入子进程库，用于在本地命令行执行 Ollama 命令 [1]
+from sentence_transformers import SentenceTransformer     # 导入 Embedding 模型类，用于将文本转化为向量 [1]
+
+### 这一段的作用：加载程序运行所需的全部工具库，包括文本处理、数学运算、子进程调用以及 AI 向量模型。 [1]
+
+OLLAMA_PATH = "改为你的ollama.exe绝对路径"                 # 设置本地 Ollama 执行文件的绝对路径 [1]
+MODEL_NAME = "改为你的模型例如：deepseek-r1:8b"            # 指定要调用的具体大语言模型名称 [1]
+
+### 这一段的作用：定义本地大模型的运行参数，确保程序能正确找到并驱动 Ollama 引擎。 [1]
+
+第二部分：加载嵌入模型与处理规则文本
+embed_model = SentenceTransformer("BAAI/bge-small-zh")    # 加载中文轻量级向量模型，将文字转化为 768 维向量 [1]
+
+### 这一段的作用：初始化 RAG 架构中的核心“翻译官”，它负责把人类语言变成机器能计算相似度的数字向量。 [1]
+
+def load_rules(path):                                                    # 定义加载校规文件的函数 [1]
+    with open(path, "r", encoding="utf-8") as f:                         # 以只读模式和 UTF-8 编码打开校规文本文件 [1]
+        text = f.read()                                                  # 读取文件的全部文本内容 [1]
+    text = text.replace("\r\n", "\n").replace("\r", "\n")                # 统一换行符，防止不同操作系统导致的格式混乱 [1]
+    matches = re.findall(r"(\d+).\s*(.*?)(?=\n\d+.|\Z)", text, re.S)     # 使用正则匹配数字编号开头的每一条规则内容 [1]
+    docs, ids = [], []                                                   # 初始化两个列表，分别存储规则文本和对应的编号 [1]
+    for num, content in matches:                                         # 遍历正则匹配到的每一组结果 [1]
+        content = content.strip().replace("\n", "")                      # 去除规则文本前后的空格并删除中间的换行 [1]
+        if content:                                                      # 如果内容不为空 [1]
+            docs.append(content)                                         # 将清洗后的规则文本存入列表 [1]
+            ids.append(num)                                              # 将对应的编号存入列表 [1]
+    return docs, ids                                                     # 返回规则文本列表和编号列表 [1]
+
+### 这一段的作用：通过正则表达式从原始文本中提取结构化的校规条款，将其转化为程序可用的列表格式。 [1]
+
+第三部分：支持化与搜索逻辑
+docs, ids = load_rules("data/school.txt")          # 调用函数加载指定路径下的校规文件 [2]
+print(f"✅ 共加载 {len(docs)} 条规则")             # 在控制台打印成功加载的规则总数 [2]
+
+### 这一段的作用：执行数据加载流程并向用户反馈加载进度。 [2]
+
+embeddings = embed_model.encode(docs, normalize_embeddings=True) # 将所有校规文本批量转化为向量并进行归一化处理 [2]
+
+### 这一段的作用：一次性将知识库里的文字全部变成“向量坐标”，为后续的快速搜索做好准备。 [2]
+
+MAX_CONTEXT_CHARS = 1000                                              # 设置发送给大模型的参考上下文最大字符长度限制 [2]
+TOP_K = 10                                                            # 设置检索时初步筛选的相关规则条数上限 [2]
+
+def retrieve(query, top_k=3):                                         # 定义检索函数，根据用户提问寻找最相关的规则 [2]
+    q_vec = embed_model.encode([query], normalize_embeddings=True)    # 将用户的提问也转化为归一化的向量 [2]
+    scores = np.dot(embeddings, q_vec.T).squeeze()                    # 计算用户问题向量与所有规则向量的点积，得出相关度得分 [2]
+    top_indices = np.argsort(scores)[-top_k:][::-1]                   # 按得分从高到低排序，并取前 k 个最相关的索引 [2]
+
+### 这一段的作用：实现 RAG 中的“检索（Retrieval）”功能，通过语义计算在海量规则中定位出最匹配的几条。 [2]
+
+第四部分：大模型判断逻辑
+def ollama_judge(query, context_rules):                                            # 定义调用大模型进行最终判定的函数 [3]
+    prompt = f"""你是一个学校规则问答助手..."""                                     # 构建提示词，包含背景设定、参考规章、用户问题及格式要求 [3]
+    try:                                                                           # 开始捕获可能出现的运行异常 [3]
+        result = subprocess.run(                                                   # 在系统后台运行 Ollama 命令行程序 [3]
+            [OLLAMA_PATH, "run", MODEL_NAME],                                      # 组合命令：ollama.exe run 模型名 [3]
+            input=prompt.encode(),                                                 # 将提示词编码为字节流作为程序的标准输入 [3]
+            capture_output=True,                                                   # 捕获程序的输出结果 [3]
+            timeout=60                                                             # 设置最长等待时间为 60 秒 [3]
+        )
+        output = result.stdout.decode().strip()                                    # 将模型返回的字节流解码为字符串并去除首尾空格 [3]
+        if not output: return "不确定", "模型未返回结果"                            # 如果模型输出为空，返回默认提示 [3]
+        lines = [line.strip() for line in output.split("\n") if line.strip()]      # 按行切分输出结果并过滤空行 [3]
+        decision = lines                                                           # 提取第一行作为最终的“允许/不允许”判定 [3]
+        reason = "\n".join(lines[1:]) if len(lines) > 1 else ""                    # 提取后续行作为判定的理由 [3]
+        return decision, reason                                                    # 返回判定结论和详细理由 [3]
+    except Exception as e:                                                         # 如果发生错误（如超时、路径错等） [3]
+        return "❌ Ollama 出错", str(e)                                            # 返回错误标识和具体的异常信息 [3]
+
+### 这一段的作用：实现 RAG 中的“生成（Generation）”功能，将检索到的证据交给大模型，让它给出人类可读的智能判定。 [3]
+
+第五部分：服务器优化与交互界面
+cache = {}                                      # 初始化一个字典，用于存储已经查询过的问题及其答案 [4]
+def ask(query):                                 # 定义外部调用的统一问答接口函数 [4]
+    key = query.strip().lower()                 # 将查询词去除空格并转为小写，作为缓存的唯一键 [4]
+    if key in cache:                            # 如果这个问题之前问过 [4]
+        return cache[key]                       # 直接从内存里拿结果，不再浪费算力去查模型 [4]
+
+### 这一段的作用：通过缓存机制减少重复计算，大幅提升相同问题的二次响应速度。 [4]
+
+print("\n📚 AI校规问答系统...")                    # 在启动时打印欢迎语和系统信息 [4]
+while True:                                        # 开启无限循环，维持问答界面 [4]
+    q = input("\n请输入问题（q退出）：")            # 等待并获取用户在命令行输入的提问 [4]
+    if q.lower() == "q":                           # 如果输入是字母 q [4]
+        break                                      # 退出循环，关闭程序 [4]
+    decision, reason = ask(q)                      # 调用处理流程获取判定结果 [4]
+    print("\n🤖 回答：")                           # 打印机器人回复的标题 [4]
+    print(decision)                                # 打印具体的判定结论 [4]
+    print("原因：", reason)                        # 打印判定的理由 [4]
+
+### 这一段的作用：提供用户交互的入口，让系统能够像聊天机器人一样持续接收指令并给出反馈。 [4]
