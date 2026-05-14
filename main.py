@@ -7,8 +7,8 @@ from sentence_transformers import SentenceTransformer
 # =========================
 # 1. 配置 Ollama
 # =========================
-OLLAMA_PATH = "C:/Users/23528/AppData/Local/Programs/Ollama/ollama.exe"
-MODEL_NAME = "deepseek-r1:8b"
+OLLAMA_PATH = "改为你的ollama.exe绝对路径"
+MODEL_NAME = "改为你的模型例如：deepseek-r1:8b"
 
 # =========================
 # 2. 加载 RAG embedding 模型
