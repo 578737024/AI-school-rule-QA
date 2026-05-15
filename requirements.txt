@@ -1,4 +1,3 @@
-numpy
+streamlit
 sentence-transformers
-torch
-transformers
+numpy
