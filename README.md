@@ -86,8 +86,17 @@ python main.py
 - 判定：不允许
 - 原因：无故缺课违反校规第一条
 - 来源：第1条校规
-- 
-## 📋 实例效果
+  
+## 📷 项目演示
+
+### 允许结果识别
+![Allow](./screenshots/demo1.png)
+
+### 不明确结果识别
+![Unclear](./screenshots/demo2.png)
+
+### 不允许结果识别
+![Prohibited](./screenshots/demo3.png)
 
 ## 📈 后续优化方向
 - 增加 Web 前端（Streamlit / Vue）
