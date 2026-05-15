@@ -1,4 +1,4 @@
-<img width="808" height="266" alt="image" src="https://github.com/user-attachments/assets/709ae758-0d8f-4c97-817e-110c78dfa367" /><img width="808" height="266" alt="9d360ed6313fb177ca4e725cb5bccec9" src="https://github.com/user-attachments/assets/ef4f25b0-c058-460f-8f68-665a78eecb37" /># AI 校规问答系统（混合模式 RAG + 本地 Ollama 模型）
+# AI 校规问答系统（混合模式 RAG + 本地 Ollama 模型）
 
 本项目是一个**基于 RAG** 的本地校规问答系统。系统首先使用**中文向量模型**对校规文本进行语义检索，召回与用户问题相关的候选校规；随后调用本地 Ollama 部署的 **deepseek-r1:8b 模型**，对候选校规进行裁判，判断用户问题属于“允许 / 不允许 / 有条件允许 / 未明确”中的哪一种情况。
 
